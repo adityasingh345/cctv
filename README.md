@@ -116,3 +116,8 @@ If this shows a graphics card, the AI will automatically use it once set up corr
 6. Use GPU if available (#6) - best long-term fix if hardware allows
 
 Doing just the first two is usually enough to notice a real difference.
+
+
+What changes if we scale to 100 or 1000+ cameras
+
+The fixes above help at small scale, but at 100+ cameras some of them stop being enough on their own. Redis, running on a single machine, will struggle to handle that many frames coming in at once, so it would likely need to be replaced with something built for much higher load, like Kafka. Similarly, one AI process would not be able to keep up with that many camera feeds, so multiple AI processes would need to run at the same time, splitting the cameras between them. Sending full video from every camera over the network to one central place would also become expensive and slow, so at that scale it usually makes more sense to do some processing closer to the cameras themselves (at the "edge"), and only send the important results (like "person detected") to the central system instead of constant raw video. In short, the overall design stays the same, but each piece needs to be upgraded to a version built for higher scale, and some processing needs to move closer to the cameras instead of all happening in one central place.
