@@ -55,3 +55,64 @@ Once all of this is running, detections will start printing on screen, showing w
 4. Add basic security (login, encrypted connections)
 5. Add monitoring so we know if a camera goes offline or something breaks
 6. Move this from a laptop to proper servers/cloud so it can actually run at scale
+
+
+---------------------------------------------------------------------------
+
+
+# How to Reduce Latency (Speed Up the System)
+
+## 1. Stop reading old frames (biggest fix)
+
+By default, the tool we use to read video (OpenCV) keeps a few old frames saved up before giving us the latest one. This means we are sometimes looking at video that is already a bit old, not the current moment.
+
+**Fix:** Tell it to only keep 1 frame at a time, so we always get the newest one.
+
+
+This is the single most effective and easiest fix.
+
+## 2. Reduce the artificial delay we added ourselves
+
+
+This means we only grab a new frame every half second on purpose. If speed matters more than saving resources right now, we can make this smaller:
+
+**Trade-off:** grabbing frames faster means more work for the queue and the AI. This is fine for 2 cameras, but needs to be balanced once there are many more cameras.
+
+## 3. Stop converting images to text format (base64)
+
+Right now, before sending a frame into the queue, we convert it into a text format (base64). This makes the data bigger and takes extra time to convert both when sending and when reading it back.
+
+**Fix:** Send the image data directly, without converting it to text first. This is a small code change but saves real time, especially as we add more cameras.
+
+## 4. Shrink the image before running AI on it
+
+The AI does not need a full-size image to detect a person. Giving it a smaller image means it has less to process, so it finishes faster, with almost no drop in accuracy for basic detection.
+
+**Fix:** Resize the frame smaller before running detection on it.
+
+## 5. Consider switching from TCP to UDP (optional, needs testing)
+
+Right now, video is sent using TCP, which is reliable but a little slower. There is another option called UDP, which is faster but can lose a little bit of video quality on unstable networks.
+
+**Note:** We switched to TCP earlier because UDP was causing the stream to crash. This can be tried again later once everything else is stable, but should not be the first thing we change.
+
+## 6. Use a GPU if available
+
+Right now, the AI detection runs on the regular processor (CPU), which is the slowest part of the whole system. If the machine has a graphics card (GPU), the AI can run on that instead, which is much faster.
+
+**How to check if a GPU is available:**
+```
+nvidia-smi
+```
+If this shows a graphics card, the AI will automatically use it once set up correctly, and this would be the single biggest speed improvement possible.
+
+## Suggested order to try these
+
+1. Fix the buffering issue (#1) - easiest, biggest impact
+2. Reduce the artificial delay (#2)
+3. Stop using base64 (#3)
+4. Shrink images before AI (#4)
+5. Try UDP only if everything else is stable (#5)
+6. Use GPU if available (#6) - best long-term fix if hardware allows
+
+Doing just the first two is usually enough to notice a real difference.
